@@ -1,5 +1,4 @@
-# Hell Mod
-#### By 56
+# Hell Mod by 56
 
 ## Effects
 - 1/2 Nail Damage
