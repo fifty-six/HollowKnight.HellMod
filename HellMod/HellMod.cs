@@ -5,9 +5,11 @@ using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using HutongGames.PlayMaker;
 using HutongGames.PlayMaker.Actions;
 
 namespace HellMod
+
 {
     public class HellMod : Modding.Mod
     {
@@ -17,13 +19,40 @@ namespace HellMod
             Modding.ModHooks.Instance.TakeHealthHook += OnHealthTaken;
             Modding.ModHooks.Instance.SoulGainHook += OnSoulGain;
             Modding.ModHooks.Instance.GetPlayerIntHook += OnInt;
-            UnityEngine.SceneManagement.SceneManager.sceneLoaded += onSceneLoad;
+            Modding.ModHooks.Instance.ColliderCreateHook += OnColliderCreate;
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoad;
         }
 
-        private void onSceneLoad(Scene dst, LoadSceneMode lsm)
+        private void OnColliderCreate(GameObject go)
+        {
+            if (FSMUtility.ContainsFSM(go, "health_manager_enemy"))
+            {
+                foreach (NamedVariable var in FSMUtility.LocateFSM(go, "health_manager_enemy").FsmVariables.GetNamedVariables(VariableType.Int))
+                {
+                    if (var.Name == "HP")
+                    {
+                        FsmInt val = var as FsmInt;
+                        val.Value = (int) Math.Round(val.Value * 1.2);
+                    }
+                }
+            }
+            if (FSMUtility.ContainsFSM(go, "health_manager"))
+            {
+                foreach (NamedVariable var in FSMUtility.LocateFSM(go, "health_manager").FsmVariables.GetNamedVariables(VariableType.Int))
+                {
+                    if (var.Name == "HP")
+                    {
+                        FsmInt val = var as FsmInt;
+                        val.Value = (int) Math.Round(val.Value * 1.2);
+                    }
+                }
+            }
+        }
+
+        private void OnSceneLoad(Scene dst, LoadSceneMode lsm)
         {
             Log("On Scene Load");
-            foreach ( HutongGames.PlayMaker.FsmState state in HeroController.instance.spellControl.FsmStates)
+            foreach ( FsmState state in HeroController.instance.spellControl.FsmStates)
             {
                 if (state.Name == "Deep Focus Speed")
                 {
@@ -46,7 +75,7 @@ namespace HellMod
                     return PlayerData.instance.MPReserveMax / 3;
                 case "nailDamage":
                     nailDamage = !nailDamage;
-                    return nailDamage? (5 + PlayerData.instance.nailSmithUpgrades * 4) / 2: (int)Math.Ceiling((float) (5 + PlayerData.instance.nailSmithUpgrades * 4f) / 2);
+                    return nailDamage ? (int) Math.Floor((5 + PlayerData.instance.nailSmithUpgrades * 4) / 2.4): (int)Math.Ceiling((float) (5 + PlayerData.instance.nailSmithUpgrades * 4f) / 2.4);
                 case "charmCost_38":
                     return 1;
                 default:
