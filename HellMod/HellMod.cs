@@ -52,6 +52,10 @@ namespace HellMod
         private void OnSceneLoad(Scene dst, LoadSceneMode lsm)
         {
             Log("On Scene Load");
+            PlayerData.instance.zoteRescuedBuzzer = true;
+            PlayerData.instance.zoteRescuedDeepnest = true;
+            PlayerData.instance.zoteDead = false;
+
             foreach ( FsmState state in HeroController.instance.spellControl.FsmStates)
             {
                 if (state.Name == "Deep Focus Speed")
@@ -75,7 +79,7 @@ namespace HellMod
                     return PlayerData.instance.MPReserveMax / 3;
                 case "nailDamage":
                     nailDamage = !nailDamage;
-                    return nailDamage ? (int) Math.Floor((5 + PlayerData.instance.nailSmithUpgrades * 4) / 2.4): (int)Math.Ceiling((float) (5 + PlayerData.instance.nailSmithUpgrades * 4f) / 2.4);
+                    return nailDamage ? (int) Math.Floor(5 / 2.4): (int)Math.Ceiling(5 / 2.4);
                 case "charmCost_38":
                     return 1;
                 default:
