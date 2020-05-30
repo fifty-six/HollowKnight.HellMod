@@ -1,120 +1,129 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using UnityEngine;
-using UnityEngine.SceneManagement;
+using System.Reflection;
 using HutongGames.PlayMaker;
 using HutongGames.PlayMaker.Actions;
+using Modding;
 
 namespace HellMod
-
 {
-    public class HellMod : Modding.Mod
+    public class HellMod : Mod, ITogglableMod
     {
+        public HellMod() : base("Hell Mod") { }
+
+        public override ModSettings GlobalSettings
+        {
+            get => _settings;
+            set => _settings = (GlobalModSettings) value;
+        }
+
+        private GlobalModSettings _settings = new GlobalModSettings();
+
+        public override string GetVersion() => Assembly.GetExecutingAssembly().GetName().Version.ToString();
+
         public override void Initialize()
         {
             Log("Initializing");
-            Modding.ModHooks.Instance.TakeHealthHook += OnHealthTaken;
-            Modding.ModHooks.Instance.SoulGainHook += OnSoulGain;
-            Modding.ModHooks.Instance.GetPlayerIntHook += OnInt;
-            Modding.ModHooks.Instance.ColliderCreateHook += OnColliderCreate;
-            UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoad;
+
+            ModHooks.Instance.TakeHealthHook += OnHealthTaken;
+            ModHooks.Instance.SoulGainHook += OnSoulGain;
+            ModHooks.Instance.GetPlayerIntHook += OnInt;
+            ModHooks.Instance.NewGameHook += OnNewGame;
+            ModHooks.Instance.SavegameLoadHook += OnSaveLoaded;
+            ModHooks.Instance.HitInstanceHook += OnHit;
         }
 
-        private void OnColliderCreate(GameObject go)
+        private HitInstance OnHit(Fsm owner, HitInstance hit)
         {
-            if (FSMUtility.ContainsFSM(go, "health_manager_enemy"))
+            switch (hit.AttackType)
             {
-                foreach (NamedVariable var in FSMUtility.LocateFSM(go, "health_manager_enemy").FsmVariables.GetNamedVariables(VariableType.Int))
-                {
-                    if (var.Name == "HP")
-                    {
-                        FsmInt val = var as FsmInt;
-                        val.Value = (int) Math.Round(val.Value * 1.2);
-                    }
-                }
+                case AttackTypes.Nail when _settings.LimitNail:
+                    hit.DamageDealt /= 2;
+                    break;
+                
+                case AttackTypes.Spell when _settings.LimitSpells:
+                    hit.DamageDealt = 5 * hit.DamageDealt / 6;
+                    break;
             }
-            if (FSMUtility.ContainsFSM(go, "health_manager"))
-            {
-                foreach (NamedVariable var in FSMUtility.LocateFSM(go, "health_manager").FsmVariables.GetNamedVariables(VariableType.Int))
-                {
-                    if (var.Name == "HP")
-                    {
-                        FsmInt val = var as FsmInt;
-                        val.Value = (int) Math.Round(val.Value * 1.2);
-                    }
-                }
-            }
+
+            return hit;
         }
 
-        private void OnSceneLoad(Scene dst, LoadSceneMode lsm)
+        private void OnNewGame() => OnSaveLoaded();
+
+        private void OnSaveLoaded(int id = -1)
         {
-            Log("On Scene Load");
-            PlayerData.instance.zoteRescuedBuzzer = true;
-            PlayerData.instance.zoteRescuedDeepnest = true;
-            PlayerData.instance.zoteDead = false;
+            if (!_settings.LimitFocus)
+                return;
 
-            foreach ( FsmState state in HeroController.instance.spellControl.FsmStates)
-            {
-                if (state.Name == "Deep Focus Speed")
-                {
-                    ((FloatMultiply)state.Actions[1]).multiplyBy.Value = (float)2.7225;
-            }
-            }
-            HeroController.instance.spellControl.Fsm.GetFsmFloat("Time Per MP Drain UnCH").Value = (float)0.04455;
-            HeroController.instance.spellControl.Fsm.GetFsmFloat("Time Per MP Drain CH").Value = (float)0.0297;
+            PlayMakerFSM sc = HeroController.instance.spellControl;
 
+            // This is the state which actually changes the speed of focusing
+            FsmState state = sc.FsmStates.First(x => x.Name == "Deep Focus Speed");
+
+            // And this is the factor which it multiplies by
+            FsmFloat deepScalar = state.Actions.OfType<FloatMultiply>().First().multiplyBy;
+
+            // Make all healing slower by the factor of deep focus
+            // So that normal healing is deep focus speed.
+            sc.Fsm.GetFsmFloat("Time Per MP Drain UnCH").Value *= deepScalar.Value;
+            sc.Fsm.GetFsmFloat("Time Per MP Drain CH").Value *= deepScalar.Value;
+            deepScalar.Value *= deepScalar.Value;
         }
 
-        private bool nailDamage;
         private int OnInt(string intName)
         {
-            switch(intName)
+            return intName switch
             {
-                case "maxMP":
-                    return PlayerData.instance.maxMP / 3;
-                case "MPReserveMax":
-                    return PlayerData.instance.MPReserveMax / 3;
-                case "nailDamage":
-                    nailDamage = !nailDamage;
-                    return nailDamage ? (int) Math.Floor(5 / 2.4): (int)Math.Ceiling(5 / 2.4);
-                case "charmCost_38":
-                    return 1;
-                default:
-                    return PlayerData.instance.GetIntInternal(intName);
-            }
+                "maxMP" when _settings.LimitSoulCapacity => PlayerData.instance.maxMP / 3,
+                "MPReserveMax" when _settings.LimitSoulCapacity => PlayerData.instance.MPReserveMax / 3,
+
+                // Dreamshield
+                "charmCost_38" => 1,
+
+                var _ => PlayerData.instance.GetIntInternal(intName)
+            };
         }
 
-        public int OnHealthTaken(int damage)
+        private int OnHealthTaken(int damage)
         {
-            return (damage * 2);
+            return _settings.DoubleDeamage
+                ? damage * 2
+                : damage;
         }
 
-        public bool soulGain; // used for OnSoulGain to have 1/2 soul, but still keep it going nicely into 33
-        public int OnSoulGain(int amount)
-        {
-            soulGain = !soulGain;
-            amount = PlayerData.instance.soulLimited ? 0: (soulGain ? amount / 2 : (int)Math.Ceiling((float) amount / 2)); // first hit is rounded down, second is rounded up
-		    if (PlayerData.instance.GetInt("MPCharge") + amount > PlayerData.instance.GetInt("maxMP"))
-            {
-                if (PlayerData.instance.GetInt("MPReserve") < PlayerData.instance.GetInt("MPReserveMax")) 
-                {
-                    PlayerData.instance.MPReserve += amount - (PlayerData.instance.GetInt("maxMP") - PlayerData.instance.GetInt("MPCharge"));
-                    if (PlayerData.instance.GetInt("MPReserve") > PlayerData.instance.GetInt("MPReserveMax"))
-                    {
-                        PlayerData.instance.MPReserve = PlayerData.instance.GetInt("MPReserveMax");
-                    }
-                }
-                PlayerData.instance.MPCharge = PlayerData.instance.GetInt("maxMP");
-            }
-                else
-                {
-                    PlayerData.instance.MPCharge += amount;
-                }
+        private bool _roundedSoul;
 
-            return 0;
+        private int OnSoulGain(int amount)
+        {
+            if (!_settings.LimitSoulGain)
+                return amount;
+
+            _roundedSoul = !_roundedSoul;
+
+            // first hit is rounded down, second is rounded up
+            PlayerData pd = PlayerData.instance;
+
+            // If we have a shade, no soul
+            // Otherwise swap between ceiling and floor to allow it to still be in 6 hits.
+            amount = pd.soulLimited
+                    ? 0
+                    : _roundedSoul
+                        ? amount / 2
+                        : (int) Math.Ceiling((float) amount / 2)
+                ;
+
+            return amount;
+        }
+
+        public void Unload()
+        {
+            ModHooks.Instance.TakeHealthHook -= OnHealthTaken;
+            ModHooks.Instance.SoulGainHook -= OnSoulGain;
+            ModHooks.Instance.GetPlayerIntHook -= OnInt;
+            ModHooks.Instance.NewGameHook -= OnNewGame;
+            ModHooks.Instance.SavegameLoadHook -= OnSaveLoaded;
+            ModHooks.Instance.HitInstanceHook -= OnHit;
         }
     }
 }
