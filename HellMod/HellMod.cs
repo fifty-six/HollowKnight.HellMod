@@ -1,9 +1,11 @@
 ﻿using System;
+using System.Collections;
 using System.Linq;
 using System.Reflection;
 using HutongGames.PlayMaker;
 using HutongGames.PlayMaker.Actions;
 using Modding;
+using UnityEngine;
 
 namespace HellMod
 {
@@ -51,10 +53,14 @@ namespace HellMod
 
         private void OnNewGame() => OnSaveLoaded();
 
-        private void OnSaveLoaded(int id = -1)
+        private void OnSaveLoaded(int id = -1) => GameManager.instance.StartCoroutine(LimitFocus());
+
+        private IEnumerator LimitFocus()
         {
             if (!_settings.LimitFocus)
-                return;
+                yield break;
+
+            yield return new WaitWhile(() => HeroController.instance == null);
 
             PlayMakerFSM sc = HeroController.instance.spellControl;
 
@@ -81,7 +87,7 @@ namespace HellMod
                 // Dreamshield
                 "charmCost_38" => 1,
 
-                var _ => PlayerData.instance.GetIntInternal(intName)
+                _ => PlayerData.instance.GetIntInternal(intName)
             };
         }
 
@@ -101,8 +107,8 @@ namespace HellMod
 
             _roundedSoul = !_roundedSoul;
 
-            // first hit is rounded down, second is rounded up
-            PlayerData pd = PlayerData.instance;
+            // First hit is rounded down, second is rounded up
+            var pd = PlayerData.instance;
 
             // If we have a shade, no soul
             // Otherwise swap between ceiling and floor to allow it to still be in 6 hits.
