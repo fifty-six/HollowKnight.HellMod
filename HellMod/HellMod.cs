@@ -4,22 +4,22 @@ using System.Linq;
 using System.Reflection;
 using HutongGames.PlayMaker;
 using HutongGames.PlayMaker.Actions;
+using JetBrains.Annotations;
 using Modding;
 using UnityEngine;
 
 namespace HellMod
 {
-    public class HellMod : Mod, ITogglableMod
+    [UsedImplicitly]
+    public class HellMod : Mod, ITogglableMod, IGlobalSettings<GlobalModSettings>
     {
         public HellMod() : base("Hell Mod") { }
 
-        public override ModSettings GlobalSettings
-        {
-            get => _settings;
-            set => _settings = (GlobalModSettings) value;
-        }
+        private GlobalModSettings _settings = new();
 
-        private GlobalModSettings _settings = new GlobalModSettings();
+        public void OnLoadGlobal(GlobalModSettings s) => _settings = s;
+
+        public GlobalModSettings OnSaveGlobal() => _settings;
 
         public override string GetVersion() => Assembly.GetExecutingAssembly().GetName().Version.ToString();
 
@@ -27,12 +27,12 @@ namespace HellMod
         {
             Log("Initializing");
 
-            ModHooks.Instance.TakeHealthHook += OnHealthTaken;
-            ModHooks.Instance.SoulGainHook += OnSoulGain;
-            ModHooks.Instance.GetPlayerIntHook += OnInt;
-            ModHooks.Instance.NewGameHook += OnNewGame;
-            ModHooks.Instance.SavegameLoadHook += OnSaveLoaded;
-            ModHooks.Instance.HitInstanceHook += OnHit;
+            ModHooks.TakeHealthHook += OnHealthTaken;
+            ModHooks.SoulGainHook += OnSoulGain;
+            ModHooks.GetPlayerIntHook += OnInt;
+            ModHooks.NewGameHook += OnNewGame;
+            ModHooks.SavegameLoadHook += OnSaveLoaded;
+            ModHooks.HitInstanceHook += OnHit;
         }
 
         private HitInstance OnHit(Fsm owner, HitInstance hit)
@@ -77,7 +77,7 @@ namespace HellMod
             deepScalar.Value *= deepScalar.Value;
         }
 
-        private int OnInt(string intName)
+        private int OnInt(string intName, int orig)
         {
             return intName switch
             {
@@ -87,7 +87,7 @@ namespace HellMod
                 // Dreamshield
                 "charmCost_38" => 1,
 
-                _ => PlayerData.instance.GetIntInternal(intName)
+                _ => orig
             };
         }
 
@@ -124,12 +124,12 @@ namespace HellMod
 
         public void Unload()
         {
-            ModHooks.Instance.TakeHealthHook -= OnHealthTaken;
-            ModHooks.Instance.SoulGainHook -= OnSoulGain;
-            ModHooks.Instance.GetPlayerIntHook -= OnInt;
-            ModHooks.Instance.NewGameHook -= OnNewGame;
-            ModHooks.Instance.SavegameLoadHook -= OnSaveLoaded;
-            ModHooks.Instance.HitInstanceHook -= OnHit;
+            ModHooks.TakeHealthHook -= OnHealthTaken;
+            ModHooks.SoulGainHook -= OnSoulGain;
+            ModHooks.GetPlayerIntHook -= OnInt;
+            ModHooks.NewGameHook -= OnNewGame;
+            ModHooks.SavegameLoadHook -= OnSaveLoaded;
+            ModHooks.HitInstanceHook -= OnHit;
         }
     }
 }

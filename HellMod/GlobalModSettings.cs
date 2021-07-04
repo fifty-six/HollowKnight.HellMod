@@ -1,10 +1,9 @@
 using System;
-using Modding;
 
 namespace HellMod
 {
     [Serializable]
-    public class GlobalModSettings : ModSettings
+    public class GlobalModSettings 
     {
         public bool LimitSoulCapacity = true;
         public bool LimitNail = true;
