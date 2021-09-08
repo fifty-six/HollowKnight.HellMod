@@ -1,42 +1,57 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFramework>net47</TargetFramework>
-    <AssemblyTitle>HellMod</AssemblyTitle>
-    <Product>HellMod</Product>
-    <Copyright>Copyright ©  2017</Copyright>
-    <OutputPath>bin\$(Configuration)\</OutputPath>
-    <LangVersion>latest</LangVersion>
-    <DebugType>portable</DebugType>
-  </PropertyGroup>
-  <ItemGroup>
-    <Reference Include="Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\..\..\References\Assembly-CSharp.dll</HintPath>
-    </Reference>
-    <Reference Include="PlayMaker, Version=1.6.0.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\..\..\References\PlayMaker.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Data.DataSetExtensions" />
-    <Reference Include="UnityEngine">
-      <HintPath>D:\Steam\SteamApps\common\Hollow Knight\hollow_knight_Data\Managed\UnityEngine.dll</HintPath>
-    </Reference>
-    <Reference Include="UnityEngine, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\..\..\References\UnityEngine.dll</HintPath>
-    </Reference>
-    <Reference Include="UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\..\..\References\UnityEngine.CoreModule.dll</HintPath>
-    </Reference>
-  </ItemGroup>
-  <Target Name="CopyMod" AfterTargets="PostBuildEvent">
-    <Copy SourceFiles="$(TargetPath)" DestinationFolder="D:/Steam/steamapps/common/Hollow Knight/hollow_knight_Data/Managed/Mods" SkipUnchangedFiles="true" />
-    <Copy SourceFiles="$(TargetDir)$(TargetName).pdb" DestinationFolder="D:/Steam/steamapps/common/Hollow Knight/hollow_knight_Data/Managed/Mods" SkipUnchangedFiles="true" />
-  </Target>
-  <Target Name="CreateReleaseZip" AfterTargets="PostBuildEvent" Condition="'$(Configuration)' == 'Release'">
-    <MakeDir Directories="$(ProjectDir)Output" />
-    <Delete Files="$(ProjectDir)/$(MSBuildProjectName).zip" />
-    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ProjectDir)/Output/" />
-    <Copy SourceFiles="$(TargetDir)$(TargetName).pdb" DestinationFolder="$(ProjectDir)/Output/" />
-    <Copy SourceFiles="$(SolutionDir)/README.md" DestinationFolder="$(ProjectDir)/Output/" />
-    <ZipDirectory DestinationFile="$(ProjectDir)/$(MSBuildProjectName).zip" SourceDirectory="$(ProjectDir)/Output" />
-    <RemoveDir Directories="$(ProjectDir)Output" />
-  </Target>
+    <PropertyGroup>
+        <TargetFramework>net47</TargetFramework>
+        <AssemblyTitle>HellMod</AssemblyTitle>
+        <Product>HellMod</Product>
+        <Copyright>Copyright © 2017</Copyright>
+        <OutputPath>bin\$(Configuration)\</OutputPath>
+        <Version>2.0.0.0</Version>
+        <LangVersion>latest</LangVersion>
+        <DebugType>portable</DebugType>
+    </PropertyGroup>
+    
+    <ItemGroup>
+        <Reference Include="Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+            <HintPath>..\..\..\References\Assembly-CSharp.dll</HintPath>
+        </Reference>
+        <Reference Include="PlayMaker, Version=1.6.0.0, Culture=neutral, PublicKeyToken=null">
+            <HintPath>..\..\..\References\PlayMaker.dll</HintPath>
+        </Reference>
+        <Reference Include="System.Data.DataSetExtensions"/>
+        <Reference Include="UnityEngine">
+            <HintPath>D:\Steam\SteamApps\common\Hollow Knight\hollow_knight_Data\Managed\UnityEngine.dll</HintPath>
+        </Reference>
+        <Reference Include="UnityEngine, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+            <HintPath>..\..\..\References\UnityEngine.dll</HintPath>
+        </Reference>
+        <Reference Include="UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+            <HintPath>..\..\..\References\UnityEngine.CoreModule.dll</HintPath>
+        </Reference>
+    </ItemGroup>
+
+    <Target Name="CopyMod" AfterTargets="PostBuildEvent">
+        <Copy
+                SourceFiles="$(TargetPath);$(TargetDir)$(TargetName).pdb"
+                DestinationFolder="D:/Steam/steamapps/common/Hollow Knight/hollow_knight_Data/Managed/Mods/$(TargetName)"
+                SkipUnchangedFiles="true"
+        />
+    </Target>
+
+    <Target Name="CreateReleaseZip" AfterTargets="PostBuildEvent" Condition="'$(Configuration)' == 'Release'">
+        <MakeDir Directories="$(ProjectDir)Output" />
+        <Delete Files="$(ProjectDir)/$(TargetName).zip" />
+        <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ProjectDir)/Output/" />
+        <Copy SourceFiles="$(TargetDir)$(TargetName).pdb" DestinationFolder="$(ProjectDir)/Output/" />
+        <Copy Condition="Exists('$(SolutionDir)/README.md')" SourceFiles="$(SolutionDir)/README.md" DestinationFolder="$(ProjectDir)/Output/" ContinueOnError="true"/>
+        <ZipDirectory DestinationFile="$(ProjectDir)/$(TargetName).zip" SourceDirectory="$(ProjectDir)/Output" />
+        <RemoveDir Directories="$(ProjectDir)Output" />
+
+        <GetFileHash Files="$(ProjectDir)/$(TargetName).zip" Algorithm="SHA256" >
+            <Output
+                    TaskParameter="Items"
+                    ItemName="FilesWithHashes"
+            />
+        </GetFileHash>
+        <Message Importance="High" Text="@(FilesWithHashes->'%(Identity): %(FileHash)')" />
+    </Target>
 </Project>
